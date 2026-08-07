@@ -1,0 +1,13 @@
+node_modules/
+.next/
+dist/
+build/
+bin/
+obj/
+*.user
+*.suo
+venv/
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
