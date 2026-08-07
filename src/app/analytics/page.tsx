@@ -7,6 +7,7 @@ import CrossExamination from '@/components/analytics/CrossExamination'
 import PromptLibrary    from '@/components/analytics/PromptLibrary'
 import AIHistory        from '@/components/analytics/AIHistory'
 import KnowledgeBase    from '@/components/analytics/KnowledgeBase'
+import AnalyticsDashboard from '@/components/dashboard/AnalyticsDashboard'
 
 export default function AnalyticsPage() {
   const [activeTab, setActiveTab] = useState('AI Chat')
@@ -14,12 +15,13 @@ export default function AnalyticsPage() {
 
   function renderContent() {
     switch (activeTab) {
-      case 'AI Chat':           return <AIChat key={chatKey} />
-      case 'Cross Examination': return <CrossExamination />
-      case 'Prompt Library':    return <PromptLibrary />
-      case 'History':           return <AIHistory />
-      case 'Knowledge Base':    return <KnowledgeBase />
-      default:                  return <AIChat key={chatKey} />
+      case 'AI Chat':                 return <AIChat key={chatKey} />
+      case 'Cross Examination':       return <CrossExamination />
+      case 'Prompt Library':          return <PromptLibrary />
+      case 'History':                 return <AIHistory />
+      case 'Observability & Metrics': return <AnalyticsDashboard />
+      case 'Knowledge Base':          return <KnowledgeBase />
+      default:                        return <AIChat key={chatKey} />
     }
   }
 

@@ -45,9 +45,9 @@ export default function ClientPage() {
 
   return (
     <>
-      <div className="glass-panel" style={{ flex: 1, overflowY: 'auto', margin: '16px', padding: 20, borderRadius: 24 }}>
+      <div className="glass-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', height: 'calc(100vh - 32px)', overflow: 'hidden', margin: '16px', padding: 20, borderRadius: 24 }}>
         {/* ================= HEADER ================= */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexShrink: 0 }}>
           <div>
             <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, color: '#0f172a', letterSpacing: '-0.5px' }}>
               Client
@@ -83,7 +83,8 @@ export default function ClientPage() {
             gap: 12,
             borderBottom: '1px solid #e2e8f0',
             paddingBottom: 12,
-            marginBottom: 24,
+            marginBottom: 16,
+            flexShrink: 0,
           }}
         >
           <TabButton
@@ -104,7 +105,7 @@ export default function ClientPage() {
         {/* ================= CONTENT ================= */}
 
         {error && (
-          <div style={{ padding: '10px 14px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, fontSize: 13, color: '#dc2626', marginBottom: 16 }}>
+          <div style={{ padding: '10px 14px', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 8, fontSize: 13, color: '#dc2626', marginBottom: 16, flexShrink: 0 }}>
             {error}
           </div>
         )}
@@ -112,6 +113,8 @@ export default function ClientPage() {
         {activeTab === 'update' && (
           <div
             style={{
+              flex: 1,
+              minHeight: 0,
               display: 'grid',
               gridTemplateColumns: '36% 64%',
               gap: 24,

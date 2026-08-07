@@ -7,10 +7,14 @@ interface UIState {
   sidebarExpanded: boolean
   caseListVisible: boolean
   aiPanelVisible:  boolean
+  aiPanelExpanded: boolean
+  aiPanelWidth:    number
   language:        string
   toggleSidebar:   () => void
   toggleCaseList:  () => void
   toggleAIPanel:   () => void
+  toggleAIPanelExpand: () => void
+  setAIPanelWidth: (width: number) => void
   setLanguage:     (lang: string) => void
 }
 
@@ -20,10 +24,14 @@ export const useUIStore = create<UIState>()(
       sidebarExpanded: false,
       caseListVisible: true,
       aiPanelVisible:  true,
+      aiPanelExpanded: false,
+      aiPanelWidth:    320,
       language:        'en',
       toggleSidebar:   () => set(s => ({ sidebarExpanded: !s.sidebarExpanded })),
       toggleCaseList:  () => set(s => ({ caseListVisible: !s.caseListVisible  })),
       toggleAIPanel:   () => set(s => ({ aiPanelVisible:  !s.aiPanelVisible   })),
+      toggleAIPanelExpand: () => set(s => ({ aiPanelExpanded: !s.aiPanelExpanded, aiPanelWidth: s.aiPanelExpanded ? 320 : 520 })),
+      setAIPanelWidth: (w) => set({ aiPanelWidth: Math.max(220, Math.min(800, w)) }),
       setLanguage:     (lang) => set({ language: lang }),
     }),
     { name: 'clausio-ui' }

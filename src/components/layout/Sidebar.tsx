@@ -64,7 +64,12 @@ const NAV = [
       {
         href: '/analytics',
         icon: 'ti-chart-bar',
-        label: ' AI-Analytics',
+        label: 'AI Analytics',
+      },
+      {
+        href: '/console',
+        icon: 'ti-terminal-2',
+        label: 'AI Console',
       },
       {
         href: '/financial',
@@ -181,15 +186,28 @@ export default function Sidebar() {
                     boxShadow: active ? '0 2px 8px rgba(0,0,0,0.04)' : 'none',
                   }}
                 >
-                  <i
-                    className={`ti ${item.icon}`}
-                    style={{
-                      fontSize: 20,
-                      color: active ? '#0f172a' : '#64748b',
-                      flexShrink: 0,
-                      transition: 'color 0.2s ease',
-                    }}
-                  />
+                  {item.label === 'Analysis' ? (
+                    <div style={{ width: 20, height: 20, borderRadius: '50%', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <video 
+                        src="/aivideo.mp4" 
+                        autoPlay 
+                        loop 
+                        muted 
+                        playsInline 
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scale(1.8)' }} 
+                      />
+                    </div>
+                  ) : (
+                    <i
+                      className={`ti ${item.icon}`}
+                      style={{
+                        fontSize: 20,
+                        color: active ? '#0f172a' : '#64748b',
+                        flexShrink: 0,
+                        transition: 'color 0.2s ease',
+                      }}
+                    />
+                  )}
 
                   {expanded && (
                     <span

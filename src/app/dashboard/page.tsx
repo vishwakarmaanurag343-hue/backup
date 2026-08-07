@@ -25,7 +25,7 @@ const TABS = [
 
 export default function DashboardPage() {
   const router  = useRouter()
-  const { caseListVisible, aiPanelVisible, toggleAIPanel } = useUIStore()
+  const { caseListVisible, aiPanelVisible, aiPanelExpanded, aiPanelWidth, toggleAIPanel } = useUIStore()
   const { selectedCaseId, setSelectedCase } = useCaseStore()
 
   const [activeTab,  setActiveTab]  = useState('Overview')
@@ -39,8 +39,9 @@ export default function DashboardPage() {
   useEffect(() => {
     if (selectedCaseId) return
     const token = localStorage.getItem('clausio_token')
-    if (!token) return
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/cases`, {
+    const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5123/api').replace(/\/+$/, '')
+    const url = apiBase.endsWith('/api') ? `${apiBase}/cases` : `${apiBase}/api/cases`
+    fetch(url, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(r => r.json())
@@ -91,10 +92,10 @@ export default function DashboardPage() {
   }
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#f1f5f9' }}>
+    <div className="glass-panel" style={{ height: 'calc(100% - 32px)', margin: '16px 16px 16px 16px', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
       {/* ── TOP BAR ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 16px', background: '#fff', borderBottom: '1px solid #e2e8f0', flexShrink: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 20px', background: 'rgba(255,255,255,0.4)', borderBottom: '1px solid rgba(0,0,0,0.06)', flexShrink: 0 }}>
         {/* Case name + badges */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -166,7 +167,7 @@ export default function DashboardPage() {
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
         {/* Case list panel */}
-        <div style={{ flexShrink: 0, overflow: 'hidden', transition: 'width 0.22s', width: caseListVisible ? 220 : 0, borderRight: caseListVisible ? '1px solid #e2e8f0' : 'none' }}>
+        <div style={{ flexShrink: 0, overflow: 'hidden', transition: 'width 0.22s', width: caseListVisible ? 260 : 0 }}>
           <CaseList />
         </div>
 
@@ -201,7 +202,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Tab content */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
+          <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
 
             {/* No case */}
             {!selectedCaseId && (
@@ -434,8 +435,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* AI Insights panel */}
-        <div style={{ flexShrink: 0, overflow: 'hidden', transition: 'width 0.22s', width: aiPanelVisible ? 240 : 0, borderLeft: aiPanelVisible ? '1px solid #e2e8f0' : 'none' }}>
+        {/* AI Insights panel - Inline layout, instant toggle (No animation) */}
+        <div style={{ flexShrink: 0, overflow: 'hidden', width: aiPanelVisible ? aiPanelWidth : 0 }}>
           <AIInsights />
         </div>
 

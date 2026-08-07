@@ -203,3 +203,218 @@ body {
   color: #64748b;
   font-weight: 500;
 }
+
+/* --- APPLE INTELLIGENCE VISION PRO GLOWING CHAT PILL BAR --- */
+
+.apple-intelligence-chat-pill {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.3); /* Light frosted glass */
+  backdrop-filter: blur(32px) saturate(200%);
+  -webkit-backdrop-filter: blur(32px) saturate(200%);
+  padding: 6px 8px 6px 20px; 
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.05),
+    inset 0 1px 1px rgba(255, 255, 255, 0.9),
+    0 0 25px rgba(56, 189, 248, 0.1); 
+  border: 1px solid rgba(255, 255, 255, 0.6); 
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.apple-intelligence-chat-pill::before {
+  content: "";
+  position: absolute;
+  inset: -2px; /* Pull out slightly for a thicker border glow */
+  border-radius: 9999px;
+  padding: 2px; /* Thicker glow border */
+  background: linear-gradient(90deg, #38bdf8, #818cf8, #c084fc, #e879f9, #38bdf8);
+  background-size: 200% 100%;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0.9; /* More opaque for brighter glow */
+}
+
+@keyframes apple-glow-flow {
+  0% { background-position: 100% 0%; }
+  100% { background-position: -100% 0%; }
+}
+
+.apple-intelligence-chat-pill:focus-within {
+  /* Box shadow and transform removed to keep the pill completely static */
+}
+
+.apple-intelligence-input-text {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #0f172a;
+  font-size: 13px;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  letter-spacing: -0.01em;
+  font-weight: 500;
+  caret-color: #38bdf8;
+}
+
+.apple-intelligence-input-text::placeholder {
+  color: #64748b;
+}
+
+.chat-aurora-bg {
+  position: relative;
+  background: transparent;
+}
+
+@keyframes aurora-flow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.apple-intelligence-send-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #ffffff; /* Bright white center like Siri */
+  border: none;
+  color: #0f172a; /* Dark icon */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(255, 255, 255, 0.3), inset 0 0 10px rgba(56, 189, 248, 0.5); /* Inner glowing ring */
+  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.15s ease;
+  flex-shrink: 0;
+}
+
+.apple-intelligence-send-btn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 4px 15px rgba(255, 255, 255, 0.4), inset 0 0 15px rgba(192, 132, 252, 0.6);
+}
+
+.apple-intelligence-send-btn:active {
+  transform: scale(0.95);
+}
+
+/* --- APPLE FLUID UI TACTILE INTERACTION --- */
+
+button:active, .glass-button:active, .glass-pill:active {
+  transform: scale(0.97) !important;
+  transition: transform 100ms ease-out !important;
+}
+
+.heading-display {
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  font-optical-sizing: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+/* --- APPLE INTELLIGENCE GLOW ANIMATIONS --- */
+
+@keyframes ai-glow-pulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); filter: hue-rotate(0deg); }
+  50% { opacity: 1; transform: scale(1.02); filter: hue-rotate(90deg); }
+}
+
+@keyframes ai-gradient-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.ai-glow-border {
+  position: fixed;
+  inset: -10px;
+  z-index: 9998;
+  pointer-events: none;
+  background: conic-gradient(from 0deg, #7c3aed, #ec4899, #f59e0b, #3b82f6, #7c3aed);
+  filter: blur(40px);
+  opacity: 0;
+  transition: opacity 0.5s ease-in-out;
+  animation: ai-gradient-spin 6s linear infinite;
+  mask-image: linear-gradient(#fff, #fff);
+  -webkit-mask-image: -webkit-radial-gradient(transparent 70%, black 100%);
+}
+
+.ai-glow-border.active {
+  opacity: 0.7;
+}
+
+.ai-floating-panel {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  z-index: 9999;
+  width: min(600px, 90vw);
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  border-radius: 32px;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.1), 0 0 0 1px rgba(255,255,255,0.2) inset;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+.ai-floating-panel.active {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+
+.ai-fab {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 28px;
+  background: linear-gradient(135deg, #7c3aed, #ec4899);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.4);
+  cursor: pointer;
+  z-index: 10000;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  border: none;
+}
+
+.ai-fab:hover {
+  transform: scale(1.05);
+  box-shadow: 0 12px 32px rgba(124, 58, 237, 0.6);
+}
+
+.ai-fab:active {
+  transform: scale(0.95);
+}
+
+.ai-siri-wave {
+  width: 100%;
+  height: 40px;
+  background: linear-gradient(90deg, transparent, rgba(124,58,237,0.3), rgba(236,72,153,0.3), transparent);
+  animation: ai-wave-flow 2s infinite linear;
+  background-size: 200% 100%;
+}
+
+@keyframes ai-wave-flow {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}

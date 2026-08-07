@@ -1,5 +1,7 @@
 // src/lib/api.ts
-const BASE = process.env.NEXT_PUBLIC_API_URL
+export const BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5123').replace(/\/+$/, '').endsWith('/api')
+  ? (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5123').replace(/\/+$/, '')
+  : `${(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5123').replace(/\/+$/, '')}/api`
 
 // Every /api/ai/* endpoint returns { result: string }. The AI is prompted to answer in
 // plain prose, so `result` is not guaranteed to be JSON — try to parse it as structured
@@ -94,15 +96,20 @@ function headers(): HeadersInit {
 }
 
 async function handle(res: Response, fallbackMessage: string) {
+  // Capture active sliding session token if issued
+  const newToken = res.headers.get('x-new-token')
+  if (newToken && typeof window !== 'undefined') {
+    localStorage.setItem('clausio_token', newToken)
+  }
+
   if (res.status === 401 && typeof window !== 'undefined') {
     localStorage.removeItem('clausio_token')
     localStorage.removeItem('clausio_user')
-    // ✅ Also clear cookie on logout/session expire
     document.cookie = 'clausio_token=; path=/; max-age=0'
     if (window.location.pathname !== '/auth/login') {
       window.location.href = '/auth/login'
     }
-    throw new Error('Session expired. Please sign in again.')
+    throw new Error('Security Violation / Session Expired: Access denied. Please sign in again.')
   }
   if (!res.ok) {
     let message = fallbackMessage
@@ -115,7 +122,13 @@ async function handle(res: Response, fallbackMessage: string) {
     throw new Error(message)
   }
   if (res.status === 204) return null
-  return res.json()
+  const responseText = await res.text()
+  if (!responseText || !responseText.trim()) return null
+  try {
+    return JSON.parse(responseText)
+  } catch {
+    return responseText
+  }
 }
 
 function get(path: string, fallbackMessage: string) {
@@ -174,6 +187,17 @@ export const casesApi = {
   remove: (id: string) => del(`/cases/${id}`, 'Failed to delete case'),
 }
 
+export const aiAnalyticsApi = {
+  getOverview: async () => {
+    return get('/ai-analytics/overview', 'Failed to fetch AI overview')
+  },
+  getQuality: async () => {
+    return get('/ai-analytics/quality', 'Failed to fetch AI quality metrics')
+  },
+  getModels: async () => {
+    return get('/ai-analytics/models', 'Failed to fetch model metrics')
+  }
+}
 export const clientsApi = {
   getAll: () => get('/clients', 'Failed to fetch clients'),
   getById: (id: string) => get(`/clients/${id}`, 'Failed to fetch client'),
@@ -277,4 +301,54 @@ export const aiApi = {
   getDraft: (caseId: string, data: any) => send('POST', `/ai/draft/${caseId}`, data, 'Failed to generate draft'),
   getCaseType: (data: any) => send('POST', '/ai/casetype', data, 'Failed to detect case type'),
   chat: (data: any) => send('POST', '/ai/chat', data, 'Failed to get AI response'),
+  
+  // Streaming version of chat
+  chatStream: async function* (data: any): AsyncGenerator<string, void, unknown> {
+    const token = getToken()
+    const res = await fetch(`${BASE}/ai/chat/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      },
+      body: JSON.stringify(data)
+    })
+
+    if (!res.ok) {
+      throw new Error('Failed to get AI response stream')
+    }
+
+    if (!res.body) {
+      throw new Error('No response body')
+    }
+
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+
+    while (true) {
+      const { value, done } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+      
+      const lines = buffer.split('\n')
+      buffer = lines.pop() || ''
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const dataStr = line.slice(6)
+          if (dataStr === '[DONE]') {
+            return
+          }
+          try {
+            const parsed = JSON.parse(dataStr)
+            yield typeof parsed === 'string' ? parsed : JSON.stringify(parsed)
+          } catch {
+            yield dataStr
+          }
+        }
+      }
+    }
+  }
 }

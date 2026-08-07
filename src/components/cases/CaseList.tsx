@@ -16,7 +16,9 @@ export default function CaseList() {
   // Load real cases from backend
   useEffect(() => {
     const token = localStorage.getItem('clausio_token')
-    fetch(`${process.env.NEXT_PUBLIC_API_URL}/cases`, {
+    const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5123/api').replace(/\/+$/, '')
+    const url = apiBase.endsWith('/api') ? `${apiBase}/cases` : `${apiBase}/api/cases`
+    fetch(url, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(r => r.json())
@@ -47,8 +49,8 @@ export default function CaseList() {
   }
 
   return (
-    <div className="glass-panel" style={{ height: 'calc(100% - 16px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <div style={{ padding: '12px', borderBottom: '1px solid rgba(255,255,255,0.4)', flexShrink: 0, background: 'rgba(255,255,255,0.4)' }}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: '1px solid rgba(0,0,0,0.08)', background: 'rgba(255,255,255,0.3)' }}>
+      <div style={{ padding: '12px', borderBottom: '1px solid rgba(0,0,0,0.06)', flexShrink: 0, background: 'rgba(255,255,255,0.4)' }}>
         <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.8)', borderRadius: 12, padding: '6px 10px', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.02)' }}>
           <i className="ti ti-search" style={{ fontSize: 13, color: '#64748b', marginRight: 6 }} />
           <input

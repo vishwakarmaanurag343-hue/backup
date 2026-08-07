@@ -106,9 +106,11 @@ async function translateDescription() {
 
     try {
       const token = localStorage.getItem('clausio_token')
+      const apiBase = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5123/api').replace(/\/+$/, '')
+      const getUrl = (endpoint: string) => apiBase.endsWith('/api') ? `${apiBase}${endpoint}` : `${apiBase}/api${endpoint}`
 
       // Step 1: Create client first
-      const clientRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/clients`, {
+      const clientRes = await fetch(getUrl('/clients'), {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -126,7 +128,7 @@ async function translateDescription() {
       const clientData = await clientRes.json()
 
       // Step 2: Create case with clientId
-      const caseRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/cases`, {
+      const caseRes = await fetch(getUrl('/cases'), {
         method:  'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
@@ -143,6 +145,10 @@ async function translateDescription() {
           filedOn:       form.filingDate ? new Date(form.filingDate).toISOString() : new Date().toISOString(),
           nextHearing:   form.hearingDate ? new Date(form.hearingDate).toISOString() : null,
           clientId:      clientData.id,
+          description:   form.description || '',
+          keyFacts:      form.description || '',
+          relief:        form.relief || '',
+          notes:         form.notes || '',
         }),
       })
 

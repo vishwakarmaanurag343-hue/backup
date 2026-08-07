@@ -6,11 +6,12 @@ interface Props {
 }
 
 const TABS = [
-  { name: 'AI Chat',           icon: 'ti-message-chatbot' },
-  { name: 'Cross Examination', icon: 'ti-gavel'           },
-  { name: 'Prompt Library',    icon: 'ti-library'         },
-  { name: 'History',           icon: 'ti-history'         },
-  { name: 'Knowledge Base',    icon: 'ti-brain'           },
+  { name: 'AI Chat', icon: 'ti-message-chatbot' },
+  { name: 'Cross Examination', icon: 'ti-gavel' },
+  { name: 'Prompt Library', icon: 'ti-library' },
+  { name: 'History', icon: 'ti-history' },
+  { name: 'Observability & Metrics', icon: 'ti-chart-bar' },
+  { name: 'Knowledge Base', icon: 'ti-brain' },
 ]
 
 export default function AnalyticsTabs({ activeTab, onChange }: Props) {

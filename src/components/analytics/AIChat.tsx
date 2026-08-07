@@ -30,7 +30,24 @@ export default function AIChat() {
   const [loading,  setLoading]  = useState(false)
   const [error,    setError]    = useState('')
   const [copied,   setCopied]   = useState<number | null>(null)
+  const [isListening, setIsListening] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
+  const audioCtxRef = useRef<AudioContext | null>(null)
+  const processorRef = useRef<ScriptProcessorNode | null>(null)
+  const pcmBufferRef = useRef<Float32Array[]>([])
+  const chunkIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (chunkIntervalRef.current) clearInterval(chunkIntervalRef.current)
+      processorRef.current?.disconnect()
+      audioCtxRef.current?.close()
+      streamRef.current?.getTracks().forEach(t => t.stop())
+    }
+  }, [])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -70,6 +87,74 @@ export default function AIChat() {
     setError('')
   }
 
+  const handleVoiceInput = async () => {
+    if (isListening) {
+      mediaRecorderRef.current?.stop()
+      streamRef.current?.getTracks().forEach(t => t.stop())
+      mediaRecorderRef.current = null
+      streamRef.current = null
+      setIsListening(false)
+      return
+    }
+
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true })
+      const devices = await navigator.mediaDevices.enumerateDevices()
+      const audioInputs = devices.filter(d => d.kind === 'audioinput')
+      const realMic = audioInputs.find(d => 
+        !d.label.toLowerCase().includes('zoom') && 
+        !d.label.toLowerCase().includes('blackhole') &&
+        d.deviceId !== 'default' &&
+        d.deviceId !== 'communications'
+      )
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: realMic ? { deviceId: { exact: realMic.deviceId } } : true
+      })
+      
+      streamRef.current = stream
+      const audioTrack = stream.getAudioTracks()[0]
+      console.log(`[voice] Using microphone: ${audioTrack?.label || 'Unknown'}`)
+      
+      const originalText = input.trim()
+      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? 'audio/webm;codecs=opus'
+        : 'audio/webm'
+
+      const recorder = new MediaRecorder(stream, { mimeType })
+      mediaRecorderRef.current = recorder
+      const audioChunks: Blob[] = []
+
+      recorder.ondataavailable = async (e) => {
+        if (e.data.size > 0) {
+          audioChunks.push(e.data)
+          const fullBlob = new Blob(audioChunks, { type: mimeType })
+          try {
+            const fd = new FormData()
+            fd.append('file', fullBlob, 'audio.webm')
+            const res = await fetch('http://127.0.0.1:8000/api/voice', { method: 'POST', body: fd })
+            if (res.ok) {
+              const data = await res.json()
+              if (data.text?.trim()) {
+                setInput(originalText + (originalText ? ' ' : '') + data.text.trim())
+              }
+            }
+          } catch (err) {
+            console.error('Voice API error', err)
+          }
+        }
+      }
+
+      recorder.onstop = () => setIsListening(false)
+      recorder.start(1500)
+      setIsListening(true)
+    } catch (e) {
+      console.error(e)
+      alert('Microphone access denied. Please allow microphone access and try again.')
+      setIsListening(false)
+    }
+  }
+
   return (
     <div>
       {/* Header */}
@@ -105,55 +190,70 @@ export default function AIChat() {
 
           {/* Welcome */}
           {messages.length === 0 && (
-            <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
-              <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'linear-gradient(135deg,#1e3a8a,#3b82f6)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <i className="ti ti-robot" style={{ fontSize: 18, color: '#fff' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 340, gap: 16 }}>
+              <div style={{ width: 64, height: 64, borderRadius: '50%', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 8px 32px rgba(56, 189, 248, 0.4)', border: '1px solid rgba(255,255,255,0.8)' }}>
+                <video src="/aivideo.mp4" autoPlay loop muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scale(1.8)' }} />
               </div>
-              <div style={{ background: '#f8fafc', borderRadius: 12, padding: 16, flex: 1 }}>
-                <div style={{ fontWeight: 700, color: '#0f172a', marginBottom: 8, fontSize: 14 }}>Clausio AI</div>
-                <div style={{ color: '#475569', fontSize: 13, lineHeight: 1.8 }}>
-                  Namaste! I am your AI legal assistant with deep knowledge of Indian law.
-                  {selectedCaseId
-                    ? ' I have your selected case loaded — ask me anything about it.'
-                    : ' Select a case from the dashboard for case-specific answers, or ask any legal question.'}
-                  <br /><br />
-                  You can ask me to: summarize your case, find judgments, draft documents, calculate maintenance, generate cross-examination questions, or anything else you need.
-                </div>
-              </div>
+              <h3 style={{ fontSize: 20, fontWeight: 600, color: '#0f172a', margin: 0, letterSpacing: '-0.01em' }}>Ask Clausio anything</h3>
+              <p style={{ color: '#64748b', fontSize: 13, textAlign: 'center', maxWidth: 400, lineHeight: 1.6 }}>
+                {selectedCaseId
+                    ? 'I have your selected case loaded. Ask me anything about it or use the quick prompts above.'
+                    : 'Select a case from the dashboard for case-specific answers, or ask any general legal question.'}
+              </p>
             </div>
           )}
 
           {/* Messages */}
           {messages.map((m, i) => (
-            <div key={i} style={{ display: 'flex', gap: 12, marginBottom: 16, flexDirection: m.role === 'user' ? 'row-reverse' : 'row' }}>
-              <div style={{ width: 34, height: 34, borderRadius: '50%', background: m.role === 'user' ? '#0f172a' : 'linear-gradient(135deg,#1e3a8a,#3b82f6)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                <i className={m.role === 'user' ? 'ti ti-user' : 'ti ti-robot'} style={{ fontSize: 15, color: '#fff' }} />
-              </div>
-              <div style={{ flex: 1, maxWidth: '85%' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexDirection: m.role === 'user' ? 'row-reverse' : 'row' }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#0f172a' }}>{m.role === 'user' ? 'You' : 'Clausio AI'}</span>
-                  <span style={{ fontSize: 11, color: '#94a3b8' }}>{m.time}</span>
+            <div key={i} style={{ marginBottom: 20 }}>
+              {m.role === 'user' ? (
+                <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 4px' }}>
+                  <div style={{ 
+                    maxWidth: '85%', 
+                    background: '#ffffff', 
+                    color: '#0f172a',
+                    border: '1px solid rgba(0,0,0,0.06)',
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.04)',
+                    borderRadius: 18, 
+                    borderBottomRightRadius: 4,
+                    padding: '12px 16px',
+                    position: 'relative'
+                  }}>
+                    <p style={{ fontSize: 13, lineHeight: 1.5, margin: 0, fontWeight: 500, whiteSpace: 'pre-wrap' }}>{m.text}</p>
+                    <span style={{ position: 'absolute', bottom: -18, right: 4, fontSize: 10, color: '#94a3b8' }}>{m.time}</span>
+                  </div>
                 </div>
-                <div style={{ background: m.role === 'user' ? '#eff6ff' : '#f8fafc', border: `1px solid ${m.role === 'user' ? '#bfdbfe' : '#e2e8f0'}`, borderRadius: 12, padding: 14, position: 'relative' }}>
-                  <div style={{ color: '#334155', fontSize: 13, lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>{m.text}</div>
-                  {m.role === 'assistant' && (
+              ) : (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '0 4px', maxWidth: '90%' }}>
+                  <div style={{ width: 28, height: 28, borderRadius: '50%', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid rgba(0,0,0,0.1)', marginTop: 2 }}>
+                    <video src="/aivideo.mp4" autoPlay loop muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scale(1.8)' }} />
+                  </div>
+                  <div style={{ flex: 1, position: 'relative', paddingRight: 32 }}>
+                    <p style={{ fontSize: 13, color: '#0f172a', lineHeight: 1.6, margin: 0, fontWeight: 500, whiteSpace: 'pre-wrap' }}>{m.text}</p>
                     <button onClick={() => copyMessage(i, m.text)}
-                      style={{ position: 'absolute', top: 8, right: 8, background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 13, padding: 4 }}>
-                      <i className={`ti ${copied === i ? 'ti-check' : 'ti-copy'}`} style={{ color: copied === i ? '#22c55e' : '#94a3b8' }} />
+                      style={{ position: 'absolute', top: -4, right: 0, background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 14, padding: 4, transition: 'color 0.2s' }}
+                      onMouseEnter={e => e.currentTarget.style.color = '#3b82f6'}
+                      onMouseLeave={e => e.currentTarget.style.color = '#94a3b8'}
+                    >
+                      <i className={`ti ${copied === i ? 'ti-check' : 'ti-copy'}`} style={{ color: copied === i ? '#22c55e' : 'inherit' }} />
                     </button>
-                  )}
+                    <span style={{ display: 'block', marginTop: 8, fontSize: 10, color: '#94a3b8' }}>{m.time}</span>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           ))}
 
           {loading && (
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-              <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'linear-gradient(135deg,#1e3a8a,#3b82f6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <i className="ti ti-robot" style={{ fontSize: 15, color: '#fff' }} />
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '0 4px', maxWidth: '90%' }}>
+              <div style={{ width: 28, height: 28, borderRadius: '50%', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid rgba(0,0,0,0.1)', marginTop: 2 }}>
+                <video src="/aivideo.mp4" autoPlay loop muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scale(1.8)' }} />
               </div>
-              <div style={{ background: '#f8fafc', borderRadius: 12, padding: '10px 16px', fontSize: 13, color: '#64748b' }}>
-                Clausio AI is thinking...
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6, margin: 0, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <i className="ti ti-loader animate-spin" style={{ fontSize: 16 }} />
+                  Thinking...
+                </p>
               </div>
             </div>
           )}
@@ -168,19 +268,52 @@ export default function AIChat() {
         </div>
 
         {/* Input */}
-        <div style={{ padding: '12px 16px', borderTop: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', gap: 10, alignItems: 'flex-end' }}>
-          <textarea
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input) } }}
-            placeholder="Ask anything... (Enter to send, Shift+Enter for new line)"
-            rows={2}
-            style={{ flex: 1, resize: 'none', border: '1px solid #e2e8f0', borderRadius: 10, padding: '10px 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none', background: '#fff', color: '#0f172a', boxSizing: 'border-box' }}
-          />
-          <button onClick={() => send(input)} disabled={loading || !input.trim()}
-            style={{ height: 44, padding: '0 18px', border: 'none', borderRadius: 10, background: loading || !input.trim() ? '#93c5fd' : '#2563eb', color: '#fff', fontWeight: 600, cursor: loading || !input.trim() ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontFamily: 'inherit', flexShrink: 0 }}>
-            <i className="ti ti-send" /> Send
-          </button>
+        <div style={{ padding: '12px 14px', background: 'transparent', flexShrink: 0, borderTop: 'none', position: 'relative' }}>
+          {/* subtle fade up to mask text scrolling under input */}
+          <div style={{ position: 'absolute', top: -32, left: 0, right: 0, height: 32, background: 'linear-gradient(to top, #fff, transparent)', pointerEvents: 'none' }} />
+          <div className="apple-intelligence-chat-pill">
+            <textarea
+              rows={1}
+              className="apple-intelligence-input-text"
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  send(input)
+                }
+              }}
+              placeholder={isListening ? "Listening..." : "Ask Clausio about this case..."}
+              style={{ resize: 'none', maxHeight: 120, paddingTop: 6, paddingBottom: 6 }}
+            />
+            <button
+              onClick={handleVoiceInput}
+              title="Voice Typing"
+              style={{ 
+                background: 'none', 
+                border: 'none', 
+                cursor: 'pointer',
+                color: isListening ? '#ef4444' : '#64748b',
+                marginRight: 8,
+                transition: 'transform 0.2s cubic-bezier(0.23, 1, 0.32, 1), color 0.2s',
+                transform: isListening ? 'scale(1.15)' : 'scale(1)'
+              }}
+            >
+              <i className="ti ti-microphone" style={{ fontSize: 18 }} />
+            </button>
+            <button
+              onClick={() => send(input)}
+              disabled={loading || !input.trim()}
+              className="apple-intelligence-send-btn"
+              title="Send message"
+              style={{ opacity: loading || !input.trim() ? 0.5 : 1 }}
+            >
+              {loading ? <i className="ti ti-loader animate-spin" /> : <i className="ti ti-arrow-up" style={{ fontSize: 16 }} />}
+            </button>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 8px 0', fontSize: 10, color: '#64748b' }}>
+            <span>Press Enter to send · Shift + Enter for new line</span>
+          </div>
         </div>
       </div>
     </div>

@@ -24,6 +24,8 @@ export default function WhatsAppUpdate({ onGenerate, generating }: Props) {
         borderRadius: 16,
         padding: 24,
         boxShadow: '0 2px 8px rgba(15,23,42,.04)',
+        height: '100%',
+        overflowY: 'auto',
       }}
     >
       {/* Header */}
