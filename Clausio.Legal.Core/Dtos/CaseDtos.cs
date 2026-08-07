@@ -14,6 +14,10 @@ public class CreateCaseDto
     public DateTime FiledOn { get; set; }
     public DateTime? NextHearing { get; set; }
     public Guid ClientId { get; set; }
+    public string? Description { get; set; }
+    public string? KeyFacts { get; set; }
+    public string? Relief { get; set; }
+    public string? Notes { get; set; }
 }
 
 public class UpdateCaseDto

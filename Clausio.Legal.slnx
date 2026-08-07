@@ -4,4 +4,5 @@
   <Project Path="Clausio.Legal.Core/Clausio.Legal.Core.csproj" />
   <Project Path="Clausio.Legal.Infrastructure/Clausio.Legal.Infrastructure.csproj" />
   <Project Path="Clausio.Legal.Service/Clausio.Legal.Service.csproj" />
+  <Project Path="Clausio.MCP/Clausio.MCP.csproj" />
 </Solution>

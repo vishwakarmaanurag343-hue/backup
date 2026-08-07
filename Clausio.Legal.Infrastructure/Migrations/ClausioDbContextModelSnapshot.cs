@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
+using Pgvector;
 
 #nullable disable
 
@@ -17,10 +18,78 @@ namespace Clausio.Legal.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.10")
+                .HasAnnotation("ProductVersion", "8.0.11")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
+            NpgsqlModelBuilderExtensions.HasPostgresExtension(modelBuilder, "vector");
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("Clausio.Legal.Core.Entities.AI.AiTelemetryLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("CitationConfidenceScore")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DraftScore")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("text");
+
+                    b.Property<int>("HallucinationRiskScore")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Intent")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsSuccess")
+                        .HasColumnType("boolean");
+
+                    b.Property<long>("LatencyMs")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Model")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PromptName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("RetrievalScore")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RouterDecision")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("TokenEfficiencyScore")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TokensIn")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TokensOut")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("AiTelemetryLogs");
+                });
 
             modelBuilder.Entity("Clausio.Legal.Core.Entities.ActionPlan", b =>
                 {
@@ -285,6 +354,51 @@ namespace Clausio.Legal.Infrastructure.Migrations
                     b.ToTable("Documents");
                 });
 
+            modelBuilder.Entity("Clausio.Legal.Core.Entities.DocumentChunk", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("DocumentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DocumentType")
+                        .HasColumnType("text");
+
+                    b.Property<Pgvector.Vector>("Embedding")
+                        .HasColumnType("vector(1536)");
+
+                    b.Property<string>("Heading")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Metadata")
+                        .HasColumnType("jsonb");
+
+                    b.Property<int?>("PageNumber")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Section")
+                        .HasColumnType("text");
+
+                    b.Property<string>("TextContent")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("DocumentChunks");
+                });
+
             modelBuilder.Entity("Clausio.Legal.Core.Entities.Expense", b =>
                 {
                     b.Property<Guid>("Id")
@@ -528,6 +642,181 @@ namespace Clausio.Legal.Infrastructure.Migrations
                     b.HasIndex("CaseId");
 
                     b.ToTable("LegalResearches");
+                });
+
+            modelBuilder.Entity("Clausio.Legal.Core.Entities.Memory.CaseMemory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CaseTitle")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CaseType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CurrentObjective")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CurrentStatus")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ImportantDates")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("KeyFacts")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("LastUpdated")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LegalIssues")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Parties")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ShortSummary")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("CaseMemories");
+                });
+
+            modelBuilder.Entity("Clausio.Legal.Core.Entities.Memory.ConversationMemory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ConversationSummary")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ImportantDecisions")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("LastUpdated")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("MessageCountSinceLastSummary")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("PendingTasks")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PreviousAiSuggestions")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ConversationMemories");
+                });
+
+            modelBuilder.Entity("Clausio.Legal.Core.Entities.Memory.DraftMemory", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CaseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DraftStatus")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("DraftType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("DraftVersion")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("LastDraftContent")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("LastUpdated")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("DraftMemories");
+                });
+
+            modelBuilder.Entity("Clausio.Legal.Core.Entities.Memory.UserPreferences", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CitationStyle")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DraftFormat")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("LastUpdated")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("PreferredJurisdiction")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PreferredLanguage")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SignatureFormat")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("WritingStyle")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("UserPreferences");
                 });
 
             modelBuilder.Entity("Clausio.Legal.Core.Entities.Payment", b =>

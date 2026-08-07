@@ -1,7 +1,10 @@
 using Clausio.Legal.Core.Dtos;
 using Clausio.Legal.Service;
+using Clausio.Legal.Service.DocumentIntelligence;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System.Threading.Channels;
 
 namespace Clausio.Legal.API.Controllers;
 
@@ -66,12 +69,28 @@ public class AiController(IAiService aiService) : ControllerBase
         return Ok(new { translatedText = result, detectedLanguage = "Auto-detected", originalText = request.Text });
     }
 
-    // ✅ Returns { response: "..." } — matches frontend aiApi.chat()
-    [HttpPost("chat")]
-    public async Task<IActionResult> Chat([FromBody] ChatRequestDto request, CancellationToken cancellationToken)
+    [AllowAnonymous]
+    [HttpPost("chat/stream")]
+    public async Task Chat([FromBody] ChatRequestDto request, CancellationToken cancellationToken)
     {
-        var result = await aiService.ChatAsync(request, cancellationToken);
-        return Ok(new { response = result });
+        Response.ContentType = "text/event-stream";
+        try
+        {
+            var stream = aiService.StreamChatAsync(request, cancellationToken);
+            await foreach (var chunk in stream)
+            {
+                var jsonChunk = System.Text.Json.JsonSerializer.Serialize(chunk);
+                var data = $"data: {jsonChunk}\n\n";
+                await Response.WriteAsync(data, cancellationToken);
+                await Response.Body.FlushAsync(cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            var data = $"data: [sys] ERROR: {ex.Message}\n\n";
+            await Response.WriteAsync(data, cancellationToken);
+            await Response.Body.FlushAsync(cancellationToken);
+        }
     }
 
     // ✅ Returns { message: "..." } — matches frontend aiApi.getWhatsApp()
@@ -136,5 +155,42 @@ public class AiController(IAiService aiService) : ControllerBase
     {
         var result = await aiService.DraftDocumentAsync(caseId, request, cancellationToken);
         return Ok(new { draft = result });
+    }
+
+    [HttpPost("upload-context/{caseId:guid}")]
+    public async Task UploadContext(Guid caseId, [FromForm] IFormFile file, [FromServices] IDocumentProcessor documentProcessor, [FromServices] Clausio.Legal.Infrastructure.ClausioDbContext db, CancellationToken cancellationToken)
+    {
+        Response.ContentType = "text/event-stream";
+        var channel = Channel.CreateUnbounded<string>();
+
+        var _ = Task.Run(async () => 
+        {
+            try 
+            {
+                var progress = new Progress<string>(msg => channel.Writer.TryWrite(msg));
+                using var stream = file.OpenReadStream();
+                var doc = await documentProcessor.ProcessDocumentAsync(caseId, stream, file.FileName, file.ContentType, progress, cancellationToken);
+                
+                db.Documents.Add(doc);
+                await db.SaveChangesAsync(cancellationToken);
+                
+                channel.Writer.TryWrite($"SUCCESS: I've successfully processed '{doc.FileName}'. You can now ask me anything about this document.");
+            }
+            catch (Exception ex)
+            {
+                channel.Writer.TryWrite($"ERROR: {ex.Message}");
+            }
+            finally
+            {
+                channel.Writer.Complete();
+            }
+        }, cancellationToken);
+
+        await foreach (var chunk in channel.Reader.ReadAllAsync(cancellationToken))
+        {
+            var data = $"data: {chunk}\n\n";
+            await Response.WriteAsync(data, cancellationToken);
+            await Response.Body.FlushAsync(cancellationToken);
+        }
     }
 }

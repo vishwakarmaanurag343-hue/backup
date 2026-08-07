@@ -1,5 +1,6 @@
 using Clausio.Legal.Core.Dtos;
 using Clausio.Legal.Core.Entities;
+using Clausio.Legal.Core.Entities.Memory;
 using Clausio.Legal.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
@@ -46,6 +47,30 @@ public class CaseService(ClausioDbContext db) : ICaseService
         };
         db.Cases.Add(entity);
         await db.SaveChangesAsync(cancellationToken);
+
+        // Automatically populate initial CaseMemory so AI Context Engine has case summary facts immediately
+        var summaryText = !string.IsNullOrWhiteSpace(dto.Description) ? dto.Description : $"{dto.Name} ({dto.CaseType})";
+        var keyFactsText = !string.IsNullOrWhiteSpace(dto.KeyFacts) ? dto.KeyFacts : summaryText;
+        var reliefText = !string.IsNullOrWhiteSpace(dto.Relief) ? dto.Relief : "Seeking appropriate legal remedy";
+
+        var memoryEntity = new CaseMemory
+        {
+            CaseId = entity.Id,
+            CaseTitle = entity.Name ?? "Untitled Case",
+            CaseType = entity.CaseType ?? "General",
+            ShortSummary = summaryText,
+            CurrentStatus = entity.Status ?? "Active",
+            KeyFacts = keyFactsText,
+            ImportantDates = $"Filed on {entity.FiledOn:yyyy-MM-dd}",
+            Parties = $"{entity.Name} (Opposing: {dto.OpposingAdv ?? "Unknown"})",
+            LegalIssues = dto.SubType ?? "General Dispute",
+            CurrentObjective = reliefText,
+            CreatedAt = DateTime.UtcNow,
+            LastUpdated = DateTime.UtcNow
+        };
+        db.CaseMemories.Add(memoryEntity);
+        await db.SaveChangesAsync(cancellationToken);
+
         return entity;
     }
 

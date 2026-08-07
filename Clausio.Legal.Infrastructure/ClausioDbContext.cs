@@ -1,4 +1,5 @@
 using Clausio.Legal.Core.Entities;
+using Clausio.Legal.Core.Entities.AI;
 using Microsoft.EntityFrameworkCore;
 
 namespace Clausio.Legal.Infrastructure;
@@ -22,8 +23,21 @@ public class ClausioDbContext(DbContextOptions<ClausioDbContext> options) : DbCo
     public DbSet<Readiness> Readinesses => Set<Readiness>();
     public DbSet<ReadinessChecklistItem> ReadinessChecklistItems => Set<ReadinessChecklistItem>();
 
+    // Phase 1 Memory & Context Intelligence
+    public DbSet<Clausio.Legal.Core.Entities.Memory.CaseMemory> CaseMemories => Set<Clausio.Legal.Core.Entities.Memory.CaseMemory>();
+    public DbSet<Clausio.Legal.Core.Entities.Memory.ConversationMemory> ConversationMemories => Set<Clausio.Legal.Core.Entities.Memory.ConversationMemory>();
+    public DbSet<Clausio.Legal.Core.Entities.Memory.DraftMemory> DraftMemories => Set<Clausio.Legal.Core.Entities.Memory.DraftMemory>();
+    public DbSet<Clausio.Legal.Core.Entities.Memory.UserPreferences> UserPreferences => Set<Clausio.Legal.Core.Entities.Memory.UserPreferences>();
+    // Phase 2 RAG Foundation
+    public DbSet<DocumentChunk> DocumentChunks => Set<DocumentChunk>();
+
+    // AI Analytics & Telemetry
+    public DbSet<AiTelemetryLog> AiTelemetryLogs => Set<AiTelemetryLog>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.HasPostgresExtension("vector");
+        
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ClausioDbContext).Assembly);
         base.OnModelCreating(modelBuilder);
     }

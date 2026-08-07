@@ -26,7 +26,18 @@ namespace Clausio.Legal.API.Middleware
 
         public async Task InvokeAsync(HttpContext context)
         {
-            var ip        = GetClientIp(context);
+            if (HttpMethods.IsOptions(context.Request.Method))
+            {
+                await _next(context);
+                return;
+            }
+
+            var ip = GetClientIp(context);
+            if (ip == "::1" || ip == "127.0.0.1" || ip == "localhost" || ip.StartsWith("127."))
+            {
+                await _next(context);
+                return;
+            }
             var isAuth    = context.Request.Path.StartsWithSegments("/api/auth/login");
             var now       = DateTime.UtcNow;
             var maxReq    = isAuth ? MAX_AUTH       : MAX_REQUESTS;

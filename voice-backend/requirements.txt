@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+torch
+torchaudio
+transformers
+websockets
+huggingface_hub
+numpy
+python-multipart
+onnxruntime
+faster-whisper
+paddlepaddle-gpu
+paddleocr
+pypdfium2

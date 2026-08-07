@@ -35,6 +35,13 @@ namespace Clausio.Legal.API.Middleware
 
         private static Task HandleExceptionAsync(HttpContext context, Exception ex)
         {
+            if (context.Response.HasStarted)
+            {
+                // Response has already started, we can't change headers/status code.
+                // Just return, the exception was already logged.
+                return Task.CompletedTask;
+            }
+
             context.Response.ContentType = "application/json";
             context.Response.StatusCode  = ex switch
             {
