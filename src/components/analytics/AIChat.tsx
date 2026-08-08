@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useCaseStore } from '@/lib/store'
 import { aiApi } from '@/lib/api'
+import FormattedMarkdown from '@/components/common/FormattedMarkdown'
 
 const QUICK_PROMPTS = [
   { icon: 'ti-file-text',    label: 'Case Summary',        message: 'Give me a complete summary of this case including parties, current stage, strengths and weaknesses.' },
@@ -229,7 +230,7 @@ export default function AIChat() {
                     <video src="/aivideo.mp4" autoPlay loop muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scale(1.8)' }} />
                   </div>
                   <div style={{ flex: 1, position: 'relative', paddingRight: 32 }}>
-                    <p style={{ fontSize: 13, color: '#0f172a', lineHeight: 1.6, margin: 0, fontWeight: 500, whiteSpace: 'pre-wrap' }}>{m.text}</p>
+                    <FormattedMarkdown content={m.text} />
                     <button onClick={() => copyMessage(i, m.text)}
                       style={{ position: 'absolute', top: -4, right: 0, background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', fontSize: 14, padding: 4, transition: 'color 0.2s' }}
                       onMouseEnter={e => e.currentTarget.style.color = '#3b82f6'}

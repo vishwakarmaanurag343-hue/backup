@@ -343,7 +343,7 @@ export default function DraftsTab() {
       casesApi.getAll()
         .then((cases: any[]) => {
           if (cases && cases.length > 0) {
-            useCaseStore.getState().setSelectedCaseId(cases[0].id)
+            useCaseStore.getState().setSelectedCase(cases[0].id, cases[0].name || '')
           } else {
             const types = getDraftTypesForCase('')
             setDraftTypes(types)
@@ -383,7 +383,7 @@ export default function DraftsTab() {
         const cases = await casesApi.getAll()
         if (cases && cases.length > 0) {
           targetCaseId = cases[0].id
-          useCaseStore.getState().setSelectedCaseId(targetCaseId)
+          useCaseStore.getState().setSelectedCase(cases[0].id, cases[0].name || '')
         }
       } catch (e) {}
     }
