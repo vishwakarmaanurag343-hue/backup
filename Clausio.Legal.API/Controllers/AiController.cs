@@ -70,6 +70,14 @@ public class AiController(IAiService aiService) : ControllerBase
     }
 
     [AllowAnonymous]
+    [HttpPost("chat")]
+    public async Task<IActionResult> ChatSync([FromBody] ChatRequestDto request, CancellationToken cancellationToken)
+    {
+        var result = await aiService.ChatAsync(request, cancellationToken);
+        return Ok(new { response = result, message = result, text = result, answer = result });
+    }
+
+    [AllowAnonymous]
     [HttpPost("chat/stream")]
     public async Task Chat([FromBody] ChatRequestDto request, CancellationToken cancellationToken)
     {

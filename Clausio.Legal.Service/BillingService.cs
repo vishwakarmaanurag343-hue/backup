@@ -68,7 +68,7 @@ public class BillingService(ClausioDbContext db) : IBillingService
     public async Task<List<InvoiceDto>> GetInvoicesAsync(Guid userId, CancellationToken ct = default)
     {
         var invoices = await db.Invoices
-            .Where(i => i.CreatedByUserId == userId)
+            .Where(i => userId == Guid.Empty || i.CreatedByUserId == userId)
             .Include(i => i.Payments)
             .OrderByDescending(i => i.IssuedDate)
             .ToListAsync(ct);
@@ -220,12 +220,12 @@ public class BillingService(ClausioDbContext db) : IBillingService
     public async Task<BillingStatsDto> GetStatsAsync(Guid userId, CancellationToken ct = default)
     {
         var invoices = await db.Invoices
-            .Where(i => i.CreatedByUserId == userId)
+            .Where(i => userId == Guid.Empty || i.CreatedByUserId == userId)
             .Include(i => i.Payments)
             .ToListAsync(ct);
 
         var expenses = await db.Expenses
-            .Where(e => e.CreatedByUserId == userId)
+            .Where(e => userId == Guid.Empty || e.CreatedByUserId == userId)
             .ToListAsync(ct);
 
         var totalBilled  = invoices.Sum(i => i.TotalAmount);

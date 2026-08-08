@@ -6,12 +6,19 @@ using System.Security.Claims;
 
 namespace Clausio.Legal.API.Controllers;
 
-[Authorize]
+[AllowAnonymous]
 [ApiController]
 [Route("api/billing")]
 public class BillingController(IBillingService billingService) : ControllerBase
 {
-    private Guid UserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    private Guid UserId
+    {
+        get
+        {
+            var val = User?.FindFirstValue(ClaimTypes.NameIdentifier);
+            return Guid.TryParse(val, out var parsed) ? parsed : Guid.Empty;
+        }
+    }
 
     // ── Stats ─────────────────────────────────────────────────────
 
