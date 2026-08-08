@@ -9,84 +9,82 @@ interface Props {
 }
 
 /**
- * Rich ChatGPT-style Markdown renderer for rendering formatted AI responses
+ * Rich ChatGPT-style Markdown renderer for rendering formatted AI responses, WhatsApp previews, and legal drafts
  */
 export default function FormattedMarkdown({ content, className = '', style = {} }: Props) {
   if (!content) return null
 
-  // Split into blocks by double newlines
-  const blocks = content.split(/\n\n+/)
+  // Process line by line for precise heading and list recognition
+  const lines = content.split('\n')
 
   return (
     <div className={`formatted-markdown ${className}`} style={{ fontSize: 13, lineHeight: 1.6, color: '#0f172a', ...style }}>
-      {blocks.map((block, bIdx) => {
-        const trimmed = block.trim()
+      {lines.map((line, idx) => {
+        const trimmed = line.trim()
 
-        // 1. Heading 2 (## Heading)
+        if (!trimmed) {
+          return <div key={idx} style={{ height: '0.6em' }} />
+        }
+
+        // 1. Heading 1 (# Heading)
+        if (trimmed.startsWith('# ')) {
+          const text = trimmed.replace(/^#\s+/, '')
+          return (
+            <h1 key={idx} style={{ fontSize: 18, fontWeight: 800, color: '#0f172a', margin: '14px 0 6px 0', letterSpacing: '-0.02em', textTransform: 'uppercase' }}>
+              {parseInlineMarkdown(text)}
+            </h1>
+          )
+        }
+
+        // 2. Heading 2 (## Heading)
         if (trimmed.startsWith('## ')) {
           const text = trimmed.replace(/^##\s+/, '')
           return (
-            <h2 key={bIdx} style={{ fontSize: 16, fontWeight: 700, color: '#0f172a', margin: '14px 0 6px 0', letterSpacing: '-0.01em' }}>
+            <h2 key={idx} style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', margin: '12px 0 4px 0', letterSpacing: '-0.01em' }}>
               {parseInlineMarkdown(text)}
             </h2>
           )
         }
 
-        // 2. Heading 3 (### Heading)
+        // 3. Heading 3 (### Heading)
         if (trimmed.startsWith('### ')) {
           const text = trimmed.replace(/^###\s+/, '')
           return (
-            <h3 key={bIdx} style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', margin: '12px 0 4px 0' }}>
+            <h3 key={idx} style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', margin: '10px 0 4px 0' }}>
               {parseInlineMarkdown(text)}
             </h3>
           )
         }
 
-        // 3. Unordered List (- item or * item)
-        if (/^[\-\*]\s+/m.test(trimmed)) {
-          const lines = trimmed.split('\n').filter(l => l.trim().length > 0)
+        // 4. Unordered List (- item or * item)
+        if (/^[\-\*]\s+/.test(trimmed)) {
+          const itemText = trimmed.replace(/^[\-\*]\s+/, '')
           return (
-            <ul key={bIdx} style={{ margin: '6px 0 10px 0', paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {lines.map((line, lIdx) => {
-                const itemText = line.replace(/^[\-\*]\s+/, '')
-                return (
-                  <li key={lIdx} style={{ listStyleType: 'disc', color: '#334155' }}>
-                    {parseInlineMarkdown(itemText)}
-                  </li>
-                )
-              })}
-            </ul>
+            <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, margin: '3px 0', paddingLeft: 8 }}>
+              <span style={{ color: '#3b82f6', fontWeight: 700, fontSize: 14 }}>•</span>
+              <span style={{ color: '#334155', flex: 1 }}>{parseInlineMarkdown(itemText)}</span>
+            </div>
           )
         }
 
-        // 4. Ordered List (1. item)
-        if (/^\d+\.\s+/m.test(trimmed)) {
-          const lines = trimmed.split('\n').filter(l => l.trim().length > 0)
+        // 5. Ordered List (1. item)
+        if (/^\d+\.\s+/.test(trimmed)) {
+          const match = trimmed.match(/^(\d+\.)\s+(.*)/)
+          const num = match ? match[1] : '1.'
+          const itemText = match ? match[2] : trimmed
           return (
-            <ol key={bIdx} style={{ margin: '6px 0 10px 0', paddingLeft: 20, display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {lines.map((line, lIdx) => {
-                const itemText = line.replace(/^\d+\.\s+/, '')
-                return (
-                  <li key={lIdx} style={{ listStyleType: 'decimal', color: '#334155' }}>
-                    {parseInlineMarkdown(itemText)}
-                  </li>
-                )
-              })}
-            </ol>
+            <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, margin: '4px 0', paddingLeft: 4 }}>
+              <span style={{ color: '#2563eb', fontWeight: 700, fontSize: 13, minWidth: 20 }}>{num}</span>
+              <span style={{ color: '#1e293b', flex: 1 }}>{parseInlineMarkdown(itemText)}</span>
+            </div>
           )
         }
 
-        // 5. Normal Paragraph with potential internal newlines
-        const paragraphLines = trimmed.split('\n')
+        // 6. Default Paragraph Line
         return (
-          <p key={bIdx} style={{ margin: '0 0 10px 0', color: '#0f172a' }}>
-            {paragraphLines.map((line, lIdx) => (
-              <React.Fragment key={lIdx}>
-                {parseInlineMarkdown(line)}
-                {lIdx < paragraphLines.length - 1 && <br />}
-              </React.Fragment>
-            ))}
-          </p>
+          <div key={idx} style={{ margin: '2px 0', color: '#0f172a' }}>
+            {parseInlineMarkdown(trimmed)}
+          </div>
         )
       })}
     </div>
@@ -94,7 +92,7 @@ export default function FormattedMarkdown({ content, className = '', style = {} 
 }
 
 /**
- * Parses inline bold (**text**), italic (*text*), code (`code`), and statutory citations
+ * Parses inline bold (**text**), italic (*text*), code (`code`), and statutory references
  */
 function parseInlineMarkdown(text: string): React.ReactNode {
   if (!text) return null

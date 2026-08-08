@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { aiApi, parseAiJson } from '@/lib/api'
+import FormattedMarkdown from '@/components/common/FormattedMarkdown'
 
 interface Props {
   message:    string
@@ -327,7 +328,7 @@ export default function WhatsAppPreview({ message, generating, onRegenerate }: P
                 title="Click to edit text directly"
                 style={{ cursor: 'text' }}
               >
-                {renderFormattedText(activeText)}
+                <FormattedMarkdown content={activeText} />
               </div>
             )}
           </div>
