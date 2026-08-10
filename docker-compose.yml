@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  # 1. PostgreSQL 16 + pgvector Store
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: clausio-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: clausio_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d clausio_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. Redis Cache & Session Store
+  redis:
+    image: redis:7-alpine
+    container_name: clausio-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 3. .NET Core 8 Web API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: clausio-backend-api
+    restart: always
+    ports:
+      - "5123:5123"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:5123
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=clausio_db;Username=postgres;Password=postgrespassword
+      - Redis__ConnectionString=redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # 4. Next.js 14 Web Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: clausio-frontend-web
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:5123/api
+    depends_on:
+      - backend
+
+  # 5. Python Speech-to-Text Microservice
+  voice-backend:
+    build:
+      context: ./voice-backend
+      dockerfile: Dockerfile
+    container_name: clausio-voice-microservice
+    restart: always
+    ports:
+      - "8000:8000"
+
+volumes:
+  postgres_data:
