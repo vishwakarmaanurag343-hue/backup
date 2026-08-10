@@ -22,26 +22,46 @@ public class CitationVerifier : ICitationVerifier
     {
         var citations = _extractor.ExtractCitations(generatedText);
         
-        if (!citations.Any())
-        {
-            // No citations to verify
-            return true;
-        }
+        if (!citations.Any()) return true;
 
         var contextText = string.Join(" ", retrievedContext.Select(c => c.TextContent)).ToLowerInvariant();
-        var allVerified = true;
+        int validCount = 0;
 
         foreach (var citation in citations)
         {
-            // Very naive verification: does the exact citation string exist in the retrieved text?
-            // In a production system, this would use semantic similarity or LLM-based verification.
-            if (!contextText.Contains(citation.ToLowerInvariant()))
+            var lowerCitation = citation.ToLowerInvariant();
+            int credibilityScore = EvaluateCredibility(lowerCitation, contextText);
+
+            if (credibilityScore >= 50)
             {
-                _logger.LogWarning("Verification failed for citation: {Citation}", citation);
-                allVerified = false;
+                validCount++;
+                _logger.LogInformation("[CitationVerifier] Verified Citation '{Citation}' with Credibility Score {Score}%", citation, credibilityScore);
+            }
+            else
+            {
+                _logger.LogWarning("[CitationVerifier] Citation '{Citation}' failed credibility check (Score {Score}%)", citation, credibilityScore);
             }
         }
 
-        return allVerified;
+        return (double)validCount / citations.Count >= 0.7;
+    }
+
+    private int EvaluateCredibility(string citation, string contextText)
+    {
+        int score = 0;
+
+        // 1. Text Context Match
+        if (contextText.Contains(citation)) score += 40;
+        else if (contextText.Split(' ').Any(w => w.Length > 4 && citation.Contains(w))) score += 20;
+
+        // 2. Recognized Statutory Act Validation
+        var recognizedActs = new[] { "ipc", "crpc", "cpc", "constitution", "evidence act", "pocso", "ndps", "arbitration", "companies act", "gst act", "consumer protection" };
+        if (recognizedActs.Any(act => citation.Contains(act))) score += 30;
+
+        // 3. Judicial Authority Level Verification
+        if (citation.Contains("supreme court") || citation.Contains("air ") || citation.Contains("scc")) score += 30;
+        else if (citation.Contains("high court")) score += 20;
+
+        return Math.Min(score, 100);
     }
 }

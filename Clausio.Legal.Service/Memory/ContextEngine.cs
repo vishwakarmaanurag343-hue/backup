@@ -77,6 +77,29 @@ public class ContextEngine : IContextEngine
             sb.AppendLine("</recent_conversation>");
         }
 
+        // 2.5 Inject Long-Term Advocate Preferences & Draft Memories
+        var userPref = _db.UserPreferences.FirstOrDefault();
+        if (userPref != null)
+        {
+            sb.AppendLine("<user_preferences>");
+            sb.AppendLine($"WritingStyle: {userPref.WritingStyle}");
+            sb.AppendLine($"PreferredLanguage: {userPref.PreferredLanguage}");
+            sb.AppendLine($"CitationStyle: {userPref.CitationStyle}");
+            sb.AppendLine($"PreferredJurisdiction: {userPref.PreferredJurisdiction}");
+            sb.AppendLine("</user_preferences>");
+        }
+
+        var draftMemories = await _memoryStore.GetRecentDraftsAsync(caseId, 3, cancellationToken);
+        if (draftMemories.Any())
+        {
+            sb.AppendLine("<draft_preferences_history>");
+            foreach (var draft in draftMemories)
+            {
+                sb.AppendLine($"DraftType: {draft.DraftType}, Version: {draft.DraftVersion}, Status: {draft.DraftStatus}");
+            }
+            sb.AppendLine("</draft_preferences_history>");
+        }
+
         // 3. Document attachment override (Bypass RAG if user attached a specific file)
         var attachedDocText = "";
         if (userQuery.Contains("📎 Attached Document: ["))

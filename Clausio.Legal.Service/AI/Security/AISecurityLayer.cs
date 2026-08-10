@@ -59,15 +59,30 @@ public class AISecurityLayer : IAISecurityLayer
         // 2. Assess for Injection/Jailbreaks (Phase B & C)
         var lowerInput = result.SanitizedInput.ToLowerInvariant();
         
+        // 2. SQL Injection Rule Detection
+        var sqlKeywords = new[] { "drop table", "union select", "; delete from", "; update ", "alter table", "exec(" };
+        var matchedSql = sqlKeywords.FirstOrDefault(sql => lowerInput.Contains(sql));
+        if (matchedSql != null)
+        {
+            _logger.LogWarning("[SecurityLayer] SQL Injection attempt detected: {SqlKeyword}", matchedSql);
+            result.IsBlocked = true;
+            result.FlagReason = $"Malicious SQL pattern detected ({matchedSql})";
+            return Task.FromResult(result);
+        }
+
+        // 3. Jailbreak/Prompt Injection Rule Detection
         var matchedKeyword = JailbreakKeywords.FirstOrDefault(kw => lowerInput.Contains(kw));
-        
         if (matchedKeyword != null)
         {
-            _logger.LogWarning("[SecurityLayer] Jailbreak/Injection attempt detected. Keyword: {Keyword}", matchedKeyword);
-            
+            _logger.LogWarning("[SecurityLayer] Jailbreak/Injection attempt detected: {Keyword}", matchedKeyword);
             result.IsBlocked = true;
-            result.FlagReason = $"Jailbreak/Injection attempt detected ({matchedKeyword})";
+            result.FlagReason = $"Prompt Injection attempt detected ({matchedKeyword})";
+            return Task.FromResult(result);
         }
+
+        // 4. Rule-Based PII Masking (Aadhaar & PAN Numbers)
+        result.SanitizedInput = Regex.Replace(result.SanitizedInput, @"\b\d{4}\s?\d{4}\s?\d{4}\b", "[AADHAAR_REDACTED]");
+        result.SanitizedInput = Regex.Replace(result.SanitizedInput, @"\b[A-Z]{5}\d{4}[A-Z]{1}\b", "[PAN_REDACTED]");
 
         return Task.FromResult(result);
     }

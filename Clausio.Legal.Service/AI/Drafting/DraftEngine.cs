@@ -54,7 +54,19 @@ public class DraftEngine : IDraftEngine
         _logger.LogInformation("[DraftEngine] Generating initial draft...");
         var initialDraft = await _aiRouter.CompleteAsync(systemPrompt, instructions, "LegalDraft", cancellationToken);
 
-        _logger.LogInformation("[DraftEngine] Draft generated successfully.");
+        // Step 3: Execute Draft Validation Pipeline
+        _logger.LogInformation("[DraftEngine] Executing Draft Validation Pipeline...");
+        var (passed, score, recommendation, feedback) = await _validationPipeline.ValidateDraftAsync(initialDraft, documentType, cancellationToken);
+        
+        _logger.LogInformation("[DraftEngine] Draft Validation Completed. Passed={Passed}, Score={Score}, Recommendation={Rec}", passed, score, recommendation);
+
+        if (!passed)
+        {
+            _logger.LogWarning("[DraftEngine] Draft validation flagged issues: {Feedback}. Applying auto-refinement...", feedback);
+            var refinementPrompt = $"Original Draft:\n{initialDraft}\n\nValidation Feedback:\n{feedback}\n\nPlease revise and correct the legal draft accordingly.";
+            initialDraft = await _aiRouter.CompleteAsync(systemPrompt, refinementPrompt, "LegalDraft", cancellationToken);
+        }
+
         return initialDraft;
     }
 

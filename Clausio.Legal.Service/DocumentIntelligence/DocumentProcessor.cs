@@ -19,7 +19,9 @@ public class DocumentProcessor : IDocumentProcessor
     private readonly LayoutAnalyzer _layoutAnalyzer;
     private readonly ClauseDetector _clauseDetector;
     private readonly TableExtractor _tableExtractor;
-    // Assume IRetrievalEngine / IChunkProcessor is injected here in real app for embeddings
+    private readonly Clausio.Legal.Core.Interfaces.Retrieval.IChunkProcessor _chunkProcessor;
+    private readonly Clausio.Legal.Core.Interfaces.Embedding.IEmbeddingProvider _embeddingProvider;
+    private readonly Clausio.Legal.Infrastructure.ClausioDbContext _db;
     private readonly ILogger<DocumentProcessor> _logger;
 
     public DocumentProcessor(
@@ -27,12 +29,18 @@ public class DocumentProcessor : IDocumentProcessor
         LayoutAnalyzer layoutAnalyzer,
         ClauseDetector clauseDetector,
         TableExtractor tableExtractor,
+        Clausio.Legal.Core.Interfaces.Retrieval.IChunkProcessor chunkProcessor,
+        Clausio.Legal.Core.Interfaces.Embedding.IEmbeddingProvider embeddingProvider,
+        Clausio.Legal.Infrastructure.ClausioDbContext db,
         ILogger<DocumentProcessor> logger)
     {
         _ocrProvider = ocrProvider;
         _layoutAnalyzer = layoutAnalyzer;
         _clauseDetector = clauseDetector;
         _tableExtractor = tableExtractor;
+        _chunkProcessor = chunkProcessor;
+        _embeddingProvider = embeddingProvider;
+        _db = db;
         _logger = logger;
     }
 
@@ -42,27 +50,23 @@ public class DocumentProcessor : IDocumentProcessor
 
         progress?.Report("Reading document...");
 
-        // 1. Determine File Type / Extraction (Mocking PDF embedded text vs OCR)
+        // 1. Determine File Type / Extraction (PaddleOCR)
         progress?.Report("Running OCR Engine (PaddleOCR)...");
         var ocrResult = await _ocrProvider.ExtractTextAsync(fileStream, contentType, cancellationToken);
         
         progress?.Report("Detecting document layout...");
-        // 2. Layout Analysis
         var layoutResult = _layoutAnalyzer.Analyze(ocrResult.Text);
         
         progress?.Report("Extracting clauses and sections...");
-        // 3. Clause Detection
         var clauseResult = _clauseDetector.Detect(layoutResult.AnalyzedText);
         
         progress?.Report("Detecting tables...");
-        // 4. Table Extraction
         var tableResult = _tableExtractor.Extract(clauseResult.ProcessedText);
 
         _logger.LogInformation("[DocumentProcessor] Detected {HeadingCount} Headings, {ClauseCount} Clauses, {TableCount} Tables",
             layoutResult.Headings.Count, clauseResult.Clauses.Count, tableResult.TableCount);
 
-        progress?.Report("Generating embeddings...");
-        // 5. Build Document Metadata (To be saved in DB)
+        // 2. Build Document Record
         var document = new Document
         {
             CaseId = caseId,
@@ -70,12 +74,25 @@ public class DocumentProcessor : IDocumentProcessor
             ContentType = contentType,
             SizeBytes = fileStream.Length,
             ExtractedText = tableResult.ProcessedText,
-            // We would store metadata like clause list and table count in a JSON column or related tables
             DocumentType = "PaddleOCR_Processed"
         };
 
-        // 6. Chunking & Embeddings (Mocked for this scope, normally done via IRetrievalEngine)
-        _logger.LogInformation("[DocumentProcessor] Successfully chunked and indexed document in pgvector.");
+        _db.Documents.Add(document);
+        await _db.SaveChangesAsync(cancellationToken);
+
+        // 3. Chunking, Vector Embedding & Indexing
+        progress?.Report("Generating chunks & vector embeddings...");
+        var chunks = _chunkProcessor.Process(document.ExtractedText, document.Id, caseId, document.DocumentType);
+        
+        foreach (var chunk in chunks)
+        {
+            var vector = await _embeddingProvider.GenerateEmbeddingAsync(chunk.TextContent, cancellationToken);
+            chunk.Embedding = new Pgvector.Vector(vector);
+            _db.DocumentChunks.Add(chunk);
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+        _logger.LogInformation("[DocumentProcessor] Created and indexed {ChunkCount} chunks in pgvector.", chunks.Count);
 
         return document;
     }

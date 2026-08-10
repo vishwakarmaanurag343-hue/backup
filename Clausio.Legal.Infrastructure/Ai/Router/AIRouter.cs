@@ -68,19 +68,29 @@ public class AIRouter : IAIRouter
     {
         var sw = System.Diagnostics.Stopwatch.StartNew();
         var estimatedPromptTokens = (systemPrompt.Length + userPrompt.Length) / 4;
+        var modelType = SelectModelType(promptType, systemPrompt, userPrompt);
         
-        _logger.LogInformation("[Router] PromptType={PromptType}, EstPromptTokens~{Tokens}", promptType, estimatedPromptTokens);
+        _logger.LogInformation("[Router:Complete] PromptType={PromptType}, ModelType={ModelType}, EstPromptTokens~{Tokens}", promptType, modelType, estimatedPromptTokens);
         
-        // Build unified pool of free OpenRouter models to try in sequence
+        // Build ordered list of models based on complexity classification
         var modelsToTry = new List<string>();
-        if (!string.IsNullOrEmpty(_deepModel)) modelsToTry.Add(_deepModel.Trim());
-        foreach (var m in _fastModels)
+        if (modelType == "DEEP")
         {
-            var trimmed = m.Trim();
-            if (!string.IsNullOrEmpty(trimmed) && !modelsToTry.Contains(trimmed))
+            if (!string.IsNullOrEmpty(_deepModel)) modelsToTry.Add(_deepModel.Trim());
+            foreach (var m in _fastModels)
             {
-                modelsToTry.Add(trimmed);
+                var trimmed = m.Trim();
+                if (!string.IsNullOrEmpty(trimmed) && !modelsToTry.Contains(trimmed)) modelsToTry.Add(trimmed);
             }
+        }
+        else
+        {
+            foreach (var m in _fastModels)
+            {
+                var trimmed = m.Trim();
+                if (!string.IsNullOrEmpty(trimmed) && !modelsToTry.Contains(trimmed)) modelsToTry.Add(trimmed);
+            }
+            if (!string.IsNullOrEmpty(_deepModel) && !modelsToTry.Contains(_deepModel.Trim())) modelsToTry.Add(_deepModel.Trim());
         }
 
         string result = string.Empty;
@@ -88,29 +98,29 @@ public class AIRouter : IAIRouter
         {
             try
             {
-                _logger.LogInformation("[Router] Attempting LLM call with free model: {Model}", model);
+                _logger.LogInformation("[Router:Complete] Attempting LLM call with model: {Model} (Target: {Type})", model, modelType);
                 result = await _fastProvider.CompleteAsync(model, systemPrompt, userPrompt, cancellationToken);
                 if (!string.IsNullOrEmpty(result))
                 {
-                    _logger.LogInformation("[Router] Successfully generated completion using model: {Model}", model);
+                    _logger.LogInformation("[Router:Complete] Successfully generated completion using model: {Model}", model);
                     break;
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning("[Router] Model {Model} failed ({Error}). Trying next free model in chain...", model, ex.Message);
+                _logger.LogWarning("[Router:Complete] Model {Model} failed ({Error}). Trying next fallback model...", model, ex.Message);
             }
         }
 
         if (string.IsNullOrEmpty(result))
         {
-            _logger.LogError("[Router] All external free OpenRouter LLM models failed.");
-            throw new InvalidOperationException("All AI LLM models failed to generate a response. Please verify your OpenRouter API key or model network access.");
+            _logger.LogError("[Router:Complete] All external LLM models failed.");
+            throw new InvalidOperationException("All AI LLM models failed to generate a response. Please verify your API key or model network access.");
         }
 
         sw.Stop();
         var estimatedCompletionTokens = result.Length / 4;
-        _logger.LogInformation("[Router] Completed. LatencyMs={Ms}, EstCompletionTokens~{Tokens}, TotalTokens~{Total}",
+        _logger.LogInformation("[Router:Complete] Completed. LatencyMs={Ms}, EstCompletionTokens~{Tokens}, TotalTokens~{Total}",
             sw.ElapsedMilliseconds, estimatedCompletionTokens, estimatedPromptTokens + estimatedCompletionTokens);
         
         return result;
@@ -197,23 +207,48 @@ public class AIRouter : IAIRouter
 
     private string SelectModelType(string promptType, string systemPrompt, string userPrompt)
     {
-        // Deep tasks: require high reasoning, long-form output, or complex drafting
-        if (promptType.Equals("LegalDraft", StringComparison.OrdinalIgnoreCase) ||
-            promptType.Equals("Summarization", StringComparison.OrdinalIgnoreCase) ||
-            promptType.Equals("ActionPlan", StringComparison.OrdinalIgnoreCase) ||
-            promptType.Equals("Analysis", StringComparison.OrdinalIgnoreCase))
+        int complexityScore = CalculateComplexityScore(promptType, systemPrompt, userPrompt);
+        
+        if (complexityScore >= 60)
         {
-            _logger.LogDebug("[Router] Task type '{PromptType}' classified as DEEP.", promptType);
+            _logger.LogInformation("[Router] Task '{PromptType}' assigned DEEP model (ComplexityScore={Score}).", promptType, complexityScore);
             return "DEEP";
         }
 
-        var combinedLength = systemPrompt.Length + userPrompt.Length;
-        if (combinedLength > 12000)
-        {
-            _logger.LogDebug("[Router] Large prompt ({Chars} chars) classified as DEEP.", combinedLength);
-            return "DEEP";
-        }
-
+        _logger.LogInformation("[Router] Task '{PromptType}' assigned FAST model (ComplexityScore={Score}).", promptType, complexityScore);
         return "FAST";
+    }
+
+    private int CalculateComplexityScore(string promptType, string systemPrompt, string userPrompt)
+    {
+        int score = 0;
+
+        // 1. Task Type Base Rules
+        score += promptType.ToLowerInvariant() switch
+        {
+            "legaldraft" => 50,
+            "deepresearch" => 60,
+            "analysis" => 40,
+            "contradiction" => 45,
+            "actionplan" => 35,
+            "summarization" => 30,
+            "prep" => 25,
+            _ => 10
+        };
+
+        // 2. Length-based Heuristics
+        var combinedLen = systemPrompt.Length + userPrompt.Length;
+        if (combinedLen > 10000) score += 35;
+        else if (combinedLen > 4000) score += 20;
+
+        // 3. Legal Statutory Keyword Density Rules
+        var legalKeywords = new[] { "supreme court", "high court", "section", "article", "ipc", "crpc", "cpc", "statute", "precedent", "ratio decidendi", "interim relief", "stay order", "affidavit", "writ petition" };
+        var lowerPrompt = userPrompt.ToLowerInvariant();
+        foreach (var kw in legalKeywords)
+        {
+            if (lowerPrompt.Contains(kw)) score += 5;
+        }
+
+        return score;
     }
 }

@@ -228,7 +228,24 @@ public class AIPipeline : IAIPipeline
 
     private static string ClassifyComplexity(string taskType, string userInput)
     {
-        return (taskType == "LegalDraft" || taskType == "ActionPlan" || userInput.Length > 1500) ? "High" : "Low";
+        int score = 0;
+        var lowerTask = taskType.ToLowerInvariant();
+        if (lowerTask.Contains("draft") || lowerTask.Contains("research") || lowerTask.Contains("actionplan") || lowerTask.Contains("contradiction")) score += 50;
+        else if (lowerTask.Contains("analysis") || lowerTask.Contains("summarization")) score += 30;
+
+        if (userInput.Length > 2500) score += 35;
+        else if (userInput.Length > 800) score += 15;
+
+        var keywords = new[] { "supreme court", "high court", "section", "article", "ipc", "crpc", "cpc", "statute", "precedent", "ratio decidendi" };
+        var lowerInput = userInput.ToLowerInvariant();
+        foreach (var kw in keywords)
+        {
+            if (lowerInput.Contains(kw)) score += 5;
+        }
+
+        if (score >= 60) return "High";
+        if (score >= 30) return "Medium";
+        return "Low";
     }
 
     private static string ResolveTemplate(string taskType, Dictionary<string, object>? parameters)
